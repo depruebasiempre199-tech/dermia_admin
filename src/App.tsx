@@ -210,15 +210,55 @@ function LoadingPanel() {
   );
 }
 
+function ErrorPanel({ message, onRetry, onLogout }) {
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center p-6" style={{ background: C.canvas }}>
+      <div
+        className="max-w-md w-full rounded-2xl p-6 flex flex-col gap-4"
+        style={{ background: "#fff", border: `1px solid ${C.clay}55` }}
+      >
+        <span className="text-sm font-semibold" style={{ color: C.clay, fontFamily: "'Space Grotesk', sans-serif" }}>
+          No se pudo cargar el panel
+        </span>
+        <pre
+          className="text-xs whitespace-pre-wrap break-words rounded-lg p-3"
+          style={{ background: C.canvas, color: C.inkSoft, fontFamily: "'JetBrains Mono', monospace" }}
+        >
+          {message}
+        </pre>
+        <div className="flex gap-3">
+          <button
+            onClick={onRetry}
+            className="text-sm px-4 py-2 rounded-lg font-medium"
+            style={{ background: C.primary, color: "#fff", fontFamily: "'Inter', sans-serif" }}
+          >
+            Reintentar
+          </button>
+          <button
+            onClick={onLogout}
+            className="text-sm px-4 py-2 rounded-lg font-medium"
+            style={{ background: C.canvas, color: C.inkSoft, fontFamily: "'Inter', sans-serif" }}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- dashboard ----------
 function Dashboard({ session, onLogout }) {
   const [range, setRange] = useState("30d");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(null);
     Promise.all([
       api.getUsuarios(range),
       api.getNegocio(range),
@@ -227,15 +267,32 @@ function Dashboard({ session, onLogout }) {
       api.getProducto(),
       api.getResenas(),
       api.getAlertas(),
-    ]).then(([usuarios, negocio, sistema, rendimiento, producto, resenas, alertas]) => {
-      if (cancelled) return;
-      setData({ usuarios, negocio, sistema, rendimiento, producto, resenas, alertas });
-      setLoading(false);
-    });
+    ])
+      .then(([usuarios, negocio, sistema, rendimiento, producto, resenas, alertas]) => {
+        if (cancelled) return;
+        setData({ usuarios, negocio, sistema, rendimiento, producto, resenas, alertas });
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("Error cargando datos del panel:", err);
+        setError(err?.message || String(err));
+        setLoading(false);
+      });
     return () => {
       cancelled = true;
     };
-  }, [range]);
+  }, [range, reloadKey]);
+
+  if (error) {
+    return (
+      <ErrorPanel
+        message={error}
+        onRetry={() => setReloadKey((k) => k + 1)}
+        onLogout={onLogout}
+      />
+    );
+  }
 
   const nav = [
     { label: "Resumen", icon: Activity, active: true },
@@ -563,6 +620,6 @@ export default function DermiaAdminPanel() {
         await api.logout();
         setSession(null);
       }}
-    />
+    /
   );
 }
