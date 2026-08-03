@@ -620,6 +620,6 @@ export default function DermiaAdminPanel() {
         await api.logout();
         setSession(null);
       }}
-    /
+    />
   );
 }
